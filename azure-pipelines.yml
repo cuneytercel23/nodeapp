@@ -2,7 +2,7 @@ trigger:
 - main
 
 pool:
-  name: cunopipelines
+  name: webapppool
 
 variables:
   tag: '$(Build.BuildId)'  
