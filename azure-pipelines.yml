@@ -5,7 +5,7 @@ pool:
   name: 'webapppool'
 
 variables:
-  - group: DevSecOpsSecrets  # içinde SONAR_TOKEN tanımlı olmalı
+  - group: Myappsecrets  # içinde SONAR_TOKEN tanımlı olmalı
 
 stages:
 - stage: SecurityScan
