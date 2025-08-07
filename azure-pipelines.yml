@@ -41,5 +41,5 @@ stages:
 
     # SonarScanner CLI (proje kökündeki sonar-project.properties ile çalışır)
     - script: |
-        sonar-scanner -Dsonar.login=$(SONAR_TOKEN)
+        /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.login=$(SONAR_TOKEN)
       displayName: 'Run SonarScanner (with sonar-project.properties)'
