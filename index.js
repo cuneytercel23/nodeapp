@@ -2,7 +2,7 @@ const express = require("express");
 const axios = require("axios");
 
 const app = express();
-
+app.disable("x-powered-by");
 const serviceName = process.env.SERVICE_NAME;
 
 app.get("/", (req, res, next) => {
