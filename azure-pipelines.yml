@@ -19,43 +19,6 @@ stages:
     steps:
     # AWS CLI Login Step
     - script: |
-        sudo aws ecr get-login-password --region eu-central-1 | sudo docker login --username AWS --password-stdin $(ecrRegistry)
-      displayName: Login to AWS ECR
+        echo cuneytercel23
 
-
-    # Build Docker Image
-    - script: |
-        sudo docker build -t $(ecrRegistry)/$(ecrRepository):$(tag) -f Dockerfile .
-      displayName: Build Docker Image
-
-
-    # Push Docker Image
-    - script: |
-        sudo docker push $(ecrRegistry)/$(ecrRepository):$(tag)
-      displayName: Push Docker Image to AWS ECR
-
-
-    # Clone Manifests Repository
-    - script: |
-        git clone $(manifestsRepo)
-        cd manifests
-      displayName: Clone Manifests Repository
-
-
-
-    # Update app1-manifest.yaml
-    - script: |
-        cd manifests
-        sed -i "s#image: .*#image: $(ecrRegistry)/$(ecrRepository):$(tag)#" app1-manifest.yaml
-      displayName: Update Image in app1-manifest.yaml
-
-    # Commit and Push Changes to Manifests Repository
-    - script: |
-        cd manifests
-        git config user.name "Azure DevOps Pipeline"
-        git config user.email "pipeline@azuredevops.com"
-        git add app1-manifest.yaml
-        git commit -m "Update image to Build ID $(tag)"
-        git push origin main
-      displayName: Commit and Push Updated Manifest
 
