@@ -1,36 +1,25 @@
 const express = require("express");
-const mysql = require("mysql");
+const axios = require("axios");
+
 const app = express();
-const awspassword="12345"
 
-// 🔴 1. SQL Injection (kritik, çoğu profilde Vulnerability olarak geçer)
-app.get("/user", (req, res) => {
-  const id = req.query.id;
-  const connection = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "password123", // 🔴 Hardcoded credential
-    database: "testdb"
-  });
+const serviceName = process.env.SERVICE_NAME;
 
-  connection.query(`SELECT * FROM users WHERE id = ${id}`, (err, results) => {
-    if (err) throw err;
-    res.send(results);
-  });
+app.get("/", (req, res, next) => {
+  res.send(`Hello this is ${serviceName}`);
 });
 
-// 🔴 2. Command Injection (kritik, Security Hotspot değil, Vulnerability olarak işaretlenebilir)
-app.get("/ping", (req, res) => {
-  const { exec } = require("child_process");
-  exec("ping -c 1 " + req.query.host, (error, stdout, stderr) => {
-    if (error) {
-      res.send(`Error: ${stderr}`);
-      return;
-    }
-    res.send(`Output: ${stdout}`);
-  });
+app.get("/app2", (req, res, next) => {
+  axios
+    .get("http://app2-service:3002")
+    .then((response) => {
+      res.send(response.data);
+    })
+    .catch((error) => {
+      console.error("Error:", error.message);
+    });
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.listen(3001, () => {
+  console.log("Service is up on port 3001 ");
 });
