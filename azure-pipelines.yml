@@ -24,6 +24,8 @@ stages:
 
     - script: |
         mkdir -p $(Build.ArtifactStagingDirectory)/owasp
+        chmod -R 777 $(Build.ArtifactStagingDirectory)/owasp
+
         docker run --rm \
           -v $(Build.SourcesDirectory):/src:ro \
           -v $(Build.ArtifactStagingDirectory)/owasp:/reports \
