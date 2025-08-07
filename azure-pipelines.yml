@@ -23,7 +23,7 @@ stages:
           --volume $(Build.SourcesDirectory):/src:ro
           --volume $(Agent.TempDirectory)/reports:/reports
           owasp/dependency-check:latest 
-          --scan /src 
+          --scan /. 
           --format ALL 
           --project "$(Build.Repository.Name)" 
           --out /reports
