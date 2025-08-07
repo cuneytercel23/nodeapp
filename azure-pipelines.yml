@@ -5,7 +5,10 @@ pool:
   name: 'webapppool'
 
 variables:
-  - group: Myappsecrets  # Burada 'SONAR_TOKEN' secret olarak tanımlı olmalı
+  - group: Myappsecrets  # 'SONAR_TOKEN' burada tanımlı olmalı
+  sonar.host.url: 'https://your-sonarqube-server.com'  # SonarQube sunucu URL'si
+  sonar.projectKey: 'your-project-key'  # SonarQube proje anahtarı
+  sonar.projectName: 'Your Project Name'  # SonarQube proje adı
 
 stages:
 - stage: SecurityScan
@@ -17,7 +20,7 @@ stages:
     
     - checkout: self
 
-    # OWASP Dependency-Check taraması
+    # 1. OWASP Dependency-Check taraması
     - script: |
         mkdir -p $(Build.ArtifactStagingDirectory)/owasp
         chmod -R 777 $(Build.ArtifactStagingDirectory)/owasp
@@ -33,20 +36,41 @@ stages:
           --out /reports
       displayName: 'Run OWASP Dependency-Check'
 
-    # OWASP raporlarını publish et
+    # 2. OWASP raporlarını publish et
     - task: PublishBuildArtifacts@1
       displayName: 'Publish OWASP Reports'
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)/owasp'
         ArtifactName: 'dependency-check-report'
 
-    # SonarScanner CLI çalıştır (sonar-project.properties dosyasını kullanır)
+    # 3. SonarScanner CLI için gerekli ortam değişkenlerini ayarla
     - script: |
-        /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.login=$(SONAR_TOKEN)
+        echo "##vso[task.setvariable variable=SONAR_SCANNER_OPTS]-Xmx2048m"
+      displayName: 'Set SonarScanner environment'
+
+    # 4. SonarScanner CLI çalıştır (sonar-project.properties dosyasını kullanır)
+    - script: |
+        /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
+          -Dsonar.host.url=$(sonar.host.url) \
+          -Dsonar.projectKey=$(sonar.projectKey) \
+          -Dsonar.projectName=$(sonar.projectName) \
+          -Dsonar.login=$(SONAR_TOKEN)
       displayName: 'Run SonarScanner (with sonar-project.properties)'
 
-    # SonarQube sunucusundaki Quality Gate sonucunu kontrol eder ve gerekirse pipeline'ı fail eder
-    - task: SonarQubePublish@5
-      displayName: 'Fail Pipeline if Quality Gate Fails'
-      inputs:
-        pollingTimeoutSec: '300'
+    # 5. Quality Gate kontrolü ekleyelim
+    - script: |
+        # Quality Gate durumunu kontrol et
+        SONAR_STATUS_URL="$(sonar.host.url)/api/qualitygates/project_status?projectKey=$(sonar.projectKey)"
+        RESPONSE=$(curl -u $(SONAR_TOKEN): "$SONAR_STATUS_URL")
+        PROJECT_STATUS=$(echo "$RESPONSE" | jq -r '.projectStatus.status')
+        
+        if [ "$PROJECT_STATUS" != "OK" ]; then
+          echo "##vso[task.logissue type=error]SonarQube Quality Gate failed. Status: $PROJECT_STATUS"
+          echo "##vso[task.complete result=Failed;]"
+        else
+          echo "SonarQube Quality Gate passed."
+        fi
+      displayName: 'Check SonarQube Quality Gate status'
+      env:
+        # jq kurulu olmalı, eğer yoksa önce kurulum yapılmalı
+        PATH: /usr/bin:/usr/local/bin:$(PATH)
