@@ -24,7 +24,7 @@ stages:
           -v $(Agent.TempDirectory)/reports:/reports
           -v /opt/dependency-check-data:/usr/share/dependency-check/data
           owasp/dependency-check:latest
-          --scan /.
+          --scan /src
           --format HTML
           --project "$(Build.Repository.Name)"
           --out /reports
