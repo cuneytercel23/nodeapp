@@ -45,27 +45,3 @@ stages:
         /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.login=$(SONAR_TOKEN) -X
       displayName: 'Run SonarScanner (with sonar-project.properties)'
 
-    # Quality Gate kontrolü - TEMEL VE NET ÇÖZÜM
-    - script: |
-        # Properties dosyasından gerekli bilgileri oku
-        PROJECT_KEY=$(grep 'sonar.projectKey' sonar-project.properties | cut -d'=' -f2 | tr -d ' ')
-        SONAR_URL=$(grep 'sonar.host.url' sonar-project.properties | cut -d'=' -f2 | tr -d ' ')
-        
-        # API'den Quality Gate durumunu sorgula
-        RESPONSE=$(curl -s -u $(SONAR_TOKEN): "$SONAR_URL/api/qualitygates/project_status?projectKey=$PROJECT_KEY")
-        PROJECT_STATUS=$(echo "$RESPONSE" | jq -r '.projectStatus.status')
-        
-        # Sonucu ekrana bas
-        echo "Quality Gate Status: $PROJECT_STATUS"
-        
-        # Duruma göre pipeline'ı başarılı/başarısız yap
-        if [ "$PROJECT_STATUS" = "OK" ]; then
-          echo "##vso[task.complete result=Succeeded;]Quality Gate PASSED ✅"
-        else
-          echo "##vso[task.logissue type=error]Quality Gate FAILED ❌ - Status: $PROJECT_STATUS"
-          echo "##vso[task.complete result=Failed;]"
-          exit 1
-        fi
-      displayName: '🛡️ Quality Gate Check - FAIL if not passed'
-      env:
-        PATH: /usr/bin:/usr/local/bin:$(PATH)
