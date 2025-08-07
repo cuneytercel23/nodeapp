@@ -1,18 +1,36 @@
-// 1. KESİN PATLATAN HARDCODED CREDENTIAL
-const DB_PASSWORD = "admin123"; // 🔴 CRITICAL: Blocker
+const express = require("express");
+const mysql = require("mysql");
+const app = express();
+const awspassword="12345"
 
-// 2. SQL INJECTION ÖRNEĞİ
-app.get("/hack", (req, res) => {
-  db.query(`SELECT * FROM users WHERE id = ${req.query.id}`); // 🔴 CRITICAL
+// 🔴 1. SQL Injection (kritik, çoğu profilde Vulnerability olarak geçer)
+app.get("/user", (req, res) => {
+  const id = req.query.id;
+  const connection = mysql.createConnection({
+    host: "localhost",
+    user: "root",
+    password: "password123", // 🔴 Hardcoded credential
+    database: "testdb"
+  });
+
+  connection.query(`SELECT * FROM users WHERE id = ${id}`, (err, results) => {
+    if (err) throw err;
+    res.send(results);
+  });
 });
 
-// 3. CORS AÇIĞI
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*"); // 🔴 MAJOR
-  next();
+// 🔴 2. Command Injection (kritik, Security Hotspot değil, Vulnerability olarak işaretlenebilir)
+app.get("/ping", (req, res) => {
+  const { exec } = require("child_process");
+  exec("ping -c 1 " + req.query.host, (error, stdout, stderr) => {
+    if (error) {
+      res.send(`Error: ${stderr}`);
+      return;
+    }
+    res.send(`Output: ${stdout}`);
+  });
 });
 
-// 4. SHELL INJECTION
-app.get("/cmd", (req) => {
-  require("child_process").exec(req.query.command); // ☠️ BLOCKER
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
 });
