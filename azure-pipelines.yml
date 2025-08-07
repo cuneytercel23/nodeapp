@@ -12,16 +12,6 @@ stages:
     displayName: 'Security Scan'
     steps:
     - checkout: self
-
-    - task: NodeTool@0
-      inputs:
-        versionSpec: '20.x'
-      displayName: 'Use Node.js'
-
-    - script: |
-        npm ci
-      displayName: 'Install dependencies'
-
     - script: |
         mkdir -p $(Build.ArtifactStagingDirectory)/owasp
         chmod -R 777 $(Build.ArtifactStagingDirectory)/owasp
