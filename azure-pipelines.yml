@@ -17,7 +17,7 @@ stages:
     
     - checkout: self
 
-    # OWASP Dependency-Check taraması (senin orijinal yapın)
+    # OWASP Dependency-Check taraması
     - script: |
         mkdir -p $(Build.ArtifactStagingDirectory)/owasp
         chmod -R 777 $(Build.ArtifactStagingDirectory)/owasp
@@ -33,36 +33,39 @@ stages:
           --out /reports
       displayName: 'Run OWASP Dependency-Check'
 
-    # OWASP raporlarını publish et (senin orijinal yapın)
+    # OWASP raporlarını publish et
     - task: PublishBuildArtifacts@1
       displayName: 'Publish OWASP Reports'
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)/owasp'
         ArtifactName: 'dependency-check-report'
 
-    # SonarScanner CLI çalıştır (senin orijinal yapın - sadece login parametresi)
+    # SonarScanner CLI çalıştır (sonar-project.properties dosyasını kullanır)
     - script: |
         /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.login=$(SONAR_TOKEN)
       displayName: 'Run SonarScanner (with sonar-project.properties)'
 
-    # Quality Gate kontrolü (opsiyonel - istersen kaldırabilirsin)
+    # Quality Gate kontrolü - TEMEL VE NET ÇÖZÜM
     - script: |
-        # sonar-project.properties dosyasından projectKey'i oku
-        PROJECT_KEY=$(grep 'sonar.projectKey' sonar-project.properties | cut -d'=' -f2)
-        SONAR_URL=$(grep 'sonar.host.url' sonar-project.properties | cut -d'=' -f2)
+        # Properties dosyasından gerekli bilgileri oku
+        PROJECT_KEY=$(grep 'sonar.projectKey' sonar-project.properties | cut -d'=' -f2 | tr -d ' ')
+        SONAR_URL=$(grep 'sonar.host.url' sonar-project.properties | cut -d'=' -f2 | tr -d ' ')
         
-        # Quality Gate durumunu kontrol et
-        SONAR_STATUS_URL="$SONAR_URL/api/qualitygates/project_status?projectKey=$PROJECT_KEY"
-        RESPONSE=$(curl -u $(SONAR_TOKEN): "$SONAR_STATUS_URL")
+        # API'den Quality Gate durumunu sorgula
+        RESPONSE=$(curl -s -u $(SONAR_TOKEN): "$SONAR_URL/api/qualitygates/project_status?projectKey=$PROJECT_KEY")
         PROJECT_STATUS=$(echo "$RESPONSE" | jq -r '.projectStatus.status')
         
-        if [ "$PROJECT_STATUS" != "OK" ]; then
-          echo "##vso[task.logissue type=error]SonarQube Quality Gate failed. Status: $PROJECT_STATUS"
-          echo "##vso[task.complete result=Failed;]"
+        # Sonucu ekrana bas
+        echo "Quality Gate Status: $PROJECT_STATUS"
+        
+        # Duruma göre pipeline'ı başarılı/başarısız yap
+        if [ "$PROJECT_STATUS" = "OK" ]; then
+          echo "##vso[task.complete result=Succeeded;]Quality Gate PASSED ✅"
         else
-          echo "SonarQube Quality Gate passed."
+          echo "##vso[task.logissue type=error]Quality Gate FAILED ❌ - Status: $PROJECT_STATUS"
+          echo "##vso[task.complete result=Failed;]"
+          exit 1
         fi
-      displayName: 'Check SonarQube Quality Gate status'
-      condition: and(succeeded(), eq(variables['CheckQualityGate'], 'true'))
+      displayName: '🛡️ Quality Gate Check - FAIL if not passed'
       env:
         PATH: /usr/bin:/usr/local/bin:$(PATH)
