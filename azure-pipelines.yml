@@ -20,6 +20,12 @@ stages:
     steps:
     - checkout: self
 
+    # Test Kubernetes API erişimi
+    - script: |
+        echo "Kubernetes nodes list:"
+        kubectl get nodes -o wide
+      displayName: 'Kubectl Get Nodes'
+
     # OWASP Dependency-Check
     - script: |
         mkdir -p $(Build.ArtifactStagingDirectory)/owasp
