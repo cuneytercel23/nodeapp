@@ -7,6 +7,24 @@ const serviceName = process.env.SERVICE_NAME;
 
 akaya60
 
+app.get("/users", (req, res) => {
+  const userId = req.query.id;
+  // !!! SONAR PATLATIR: SQL Injection
+  db.query(`SELECT * FROM users WHERE id = ${userId}`, (err, result) => {
+    res.json(result);
+  });
+});
+
+app.get("/loop", () => {
+  while(true) { 
+    console.log("Patlat beni!");
+  }
+});
+
+// !!! SONAR PATLATIR: Hardcoded secret
+const API_KEY = "12345-super-secret-key"; 
+app.get("/admin", (req, res) => res.send(API_KEY));
+
 app.get("/", (req, res, next) => {
   res.send(`Hello this is ${serviceName}`);
 });
