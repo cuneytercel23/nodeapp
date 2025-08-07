@@ -1,45 +1,18 @@
-const express = require("express");
-const axios = require("axios");
+// 1. KESİN PATLATAN HARDCODED CREDENTIAL
+const DB_PASSWORD = "admin123"; // 🔴 CRITICAL: Blocker
 
-const app = express();
-
-const serviceName = process.env.SERVICE_NAME;
-
-akaya60
-
-app.get("/users", (req, res) => {
-  const userId = req.query.id;
-  // !!! SONAR PATLATIR: SQL Injection
-  db.query(`SELECT * FROM users WHERE id = ${userId}`, (err, result) => {
-    res.json(result);
-  });
+// 2. SQL INJECTION ÖRNEĞİ
+app.get("/hack", (req, res) => {
+  db.query(`SELECT * FROM users WHERE id = ${req.query.id}`); // 🔴 CRITICAL
 });
 
-app.get("/loop", () => {
-  while(true) { 
-    console.log("Patlat beni!");
-  }
+// 3. CORS AÇIĞI
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*"); // 🔴 MAJOR
+  next();
 });
 
-// !!! SONAR PATLATIR: Hardcoded secret
-const API_KEY = "12345-super-secret-key"; 
-app.get("/admin", (req, res) => res.send(API_KEY));
-
-app.get("/", (req, res, next) => {
-  res.send(`Hello this is ${serviceName}`);
-});
-
-app.get("/app2", (req, res, next) => {
-  axios
-    .get("http://app2-service:3002")
-    .then((response) => {
-      res.send(response.data);
-    })
-    .catch((error) => {
-      console.error("Error:", error.message);
-    });
-});
-
-app.listen(3001, () => {
-  console.log("Service is up on port 3001 ");
+// 4. SHELL INJECTION
+app.get("/cmd", (req) => {
+  require("child_process").exec(req.query.command); // ☠️ BLOCKER
 });
