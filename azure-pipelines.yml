@@ -2,23 +2,28 @@ trigger:
 - main
 
 pool:
-  name: webapppool
-
-variables:
-  tag: '$(Build.BuildId)'  
-  ecrRegistry: '455385744192.dkr.ecr.eu-central-1.amazonaws.com/cunoapp'
-  ecrRepository: 'app1'
-  manifestsRepo: 'git@ssh.dev.azure.com:v3/cuneyt9999/manifests/manifests'  # Manifests repo URL
+  name: 'webapppool'
 
 stages:
-- stage: BuildAndPush
-  displayName: Build, Update Manifests, and Push Docker Image
+- stage: SecurityScan
+  displayName: 'OWASP Dependency Check'
   jobs:
-  - job: BuildPushUpdate
-    displayName: Build and Push Docker Image and Update Manifests
+  - job: DependencyCheck
+    displayName: 'Security Scan'
     steps:
-    # AWS CLI Login Step
-    - script: |
-        echo cuneytercel23
+    
+    - checkout: self
 
-
+    - task: Docker@2
+      displayName: 'OWASP Dependency Check'
+      inputs:
+        command: 'run'
+        arguments: |
+          --rm 
+          --volume $(Build.SourcesDirectory):/src:ro
+          --volume $(Agent.TempDirectory)/reports:/reports
+          owasp/dependency-check:latest 
+          --scan /src 
+          --format ALL 
+          --project "$(Build.Repository.Name)" 
+          --out /reports
