@@ -1,25 +1,18 @@
-const express = require("express");
-const axios = require("axios");
+// 1. KESİN PATLATAN HARDCODED CREDENTIAL
+const DB_PASSWORD = "admin123"; // 🔴 CRITICAL: Blocker
 
-const app = express();
-
-const serviceName = process.env.SERVICE_NAME;
-
-app.get("/", (req, res, next) => {
-  res.send(`Hello this is ${serviceName}`);
+// 2. SQL INJECTION ÖRNEĞİ
+app.get("/hack", (req, res) => {
+  db.query(`SELECT * FROM users WHERE id = ${req.query.id}`); // 🔴 CRITICAL
 });
 
-app.get("/app1", (req, res, next) => {
-  axios
-    .get("http://app1-service:3001/")
-    .then((response) => {
-      res.send(response.data);
-    })
-    .catch((error) => {
-      console.error("Error:", error.message);
-    });
+// 3. CORS AÇIĞI
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*"); // 🔴 MAJOR
+  next();
 });
 
-app.listen(3002, () => {
-  console.log("Service is up on port 3001 ");
+// 4. SHELL INJECTION
+app.get("/cmd", (req) => {
+  require("child_process").exec(req.query.command); // ☠️ BLOCKER
 });
