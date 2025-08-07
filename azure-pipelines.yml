@@ -15,31 +15,28 @@ stages:
 
     - task: NodeTool@0
       inputs:
-        versionSpec: '20.x'  # Kullandığın Node.js sürümüne göre değiştir
+        versionSpec: '20.x'
       displayName: 'Use Node.js'
 
     - script: |
         npm ci
       displayName: 'Install dependencies'
 
-    - task: Docker@2
-      displayName: 'Run OWASP Dependency-Check'
-      inputs:
-        command: 'run'
-        container: 'owasp/dependency-check:latest'
-        arguments: >
-          --rm
-          -v $(Build.SourcesDirectory):/src:ro
-          -v $(Build.ArtifactStagingDirectory):/reports
-          -v /opt/dependency-check-data:/usr/share/dependency-check/data
-          owasp/dependency-check:latest
-          --scan /src
-          --format HTML
-          --project "$(Build.Repository.Name)"
+    - script: |
+        mkdir -p $(Build.ArtifactStagingDirectory)/owasp
+        docker run --rm \
+          -v $(Build.SourcesDirectory):/src:ro \
+          -v $(Build.ArtifactStagingDirectory)/owasp:/reports \
+          -v /opt/dependency-check-data:/usr/share/dependency-check/data \
+          owasp/dependency-check:latest \
+          --scan /src \
+          --format ALL \
+          --project "$(Build.Repository.Name)" \
           --out /reports
+      displayName: 'Run OWASP Dependency-Check'
 
     - task: PublishBuildArtifacts@1
-      displayName: 'Publish HTML Report'
+      displayName: 'Publish OWASP Reports'
       inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)/dependency-check-report.html'
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)/owasp'
         ArtifactName: 'dependency-check-report'
