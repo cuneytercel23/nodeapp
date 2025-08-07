@@ -5,7 +5,7 @@ pool:
   name: 'webapppool'
 
 variables:
-  - group: Myappsecrets  # içinde SONAR_TOKEN tanımlı olmalı
+  - group: Myappsecrets  # Burada 'SONAR_TOKEN' secret olarak tanımlı olmalı
 
 stages:
 - stage: SecurityScan
@@ -14,6 +14,7 @@ stages:
   - job: DependencyAndStaticCheck
     displayName: 'Dependency & Static Analysis'
     steps:
+    
     - checkout: self
 
     # OWASP Dependency-Check taraması
@@ -39,11 +40,13 @@ stages:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)/owasp'
         ArtifactName: 'dependency-check-report'
 
-    # SonarScanner CLI (proje kökündeki sonar-project.properties ile çalışır)
+    # SonarScanner CLI çalıştır (sonar-project.properties dosyasını kullanır)
     - script: |
         /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.login=$(SONAR_TOKEN)
       displayName: 'Run SonarScanner (with sonar-project.properties)'
+
+    # SonarQube sunucusundaki Quality Gate sonucunu kontrol eder ve gerekirse pipeline'ı fail eder
     - task: SonarQubePublish@5
+      displayName: 'Fail Pipeline if Quality Gate Fails'
       inputs:
         pollingTimeoutSec: '300'
-      displayName: 'Fail Pipeline if Quality Gate Fails'
