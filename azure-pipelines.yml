@@ -5,30 +5,26 @@ pool:
   name: 'webapppool'
 
 variables:
-  - group: Myappsecrets  # SONAR_TOKEN, DOCKERHUB_USERNAME, DOCKERHUB_PASSWORD burada olmalı
+  - group: Myappsecrets  # SONAR_TOKEN, DOCKERHUB_USERNAME, DOCKERHUB_PASSWORD
 
 stages:
-# 1. Static Analysis Stage
+# 1) Statik analiz 
 - stage: StaticAnalysis
   displayName: 'OWASP + SonarScanner'
   jobs:
   - job: StaticAnalysisJob
-    displayName: 'Run OWASP & SonarQube Analysis'
     steps:
     - checkout: self
 
-    # OWASP Dependency-Check
     - script: |
         mkdir -p $(Build.ArtifactStagingDirectory)/owasp
         chmod -R 777 $(Build.ArtifactStagingDirectory)/owasp
-
         docker run --rm \
           -v $(Build.SourcesDirectory):/src:ro \
           -v $(Build.ArtifactStagingDirectory)/owasp:/reports \
           -v /opt/dependency-check-data:/usr/share/dependency-check/data \
           owasp/dependency-check:latest \
-          --scan /src \
-          --format ALL \
+          --scan /src --format ALL \
           --project "$(Build.Repository.Name)" \
           --out /reports
       displayName: 'Run OWASP Dependency-Check'
@@ -39,7 +35,6 @@ stages:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)/owasp'
         ArtifactName: 'dependency-check-report'
 
-    # SonarScanner CLI (wait=true)
     - script: |
         /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
           -Dsonar.login=$(SONAR_TOKEN) \
@@ -47,45 +42,29 @@ stages:
           -X
       displayName: 'Run SonarScanner'
 
-# 2. Build Docker Image Stage
-- stage: BuildImage
-  displayName: 'Docker Build'
+# 2) Build + Scan 
+- stage: BuildAndScan
+  displayName: 'Docker Build + Trivy Scan'
   dependsOn: StaticAnalysis
   jobs:
-  - job: DockerBuildJob
-    displayName: 'Build Docker Image'
+  - job: BuildAndScanJob
     steps:
     - checkout: self
+
+    # Docker build
     - script: |
         IMAGE_NAME=my-nodejs-app
         IMAGE_TAG=$(Build.BuildId)
         docker build -t $IMAGE_NAME:$IMAGE_TAG .
-        echo "IMAGE_NAME=$IMAGE_NAME" >> $(Build.ArtifactStagingDirectory)/image_info.env
+        echo "IMAGE_NAME=$IMAGE_NAME" >  $(Build.ArtifactStagingDirectory)/image_info.env
         echo "IMAGE_TAG=$IMAGE_TAG" >> $(Build.ArtifactStagingDirectory)/image_info.env
       displayName: 'Build Docker Image'
-    - publish: $(Build.ArtifactStagingDirectory)/image_info.env
-      artifact: image_info
 
-# 3. Scan and Push Stage
-- stage: ScanAndPush
-  displayName: 'Trivy Scan + Docker Hub Push'
-  dependsOn: BuildImage
-  jobs:
-  - job: ScanAndPushJob
-    displayName: 'Trivy Scan then Push to Docker Hub'
-    steps:
-    - download: current
-      artifact: image_info
-
-    # Trivy Scan Step
+    # Trivy scan (CRITICAL/HIGH varsa fail)
     - script: |
-        source $(Pipeline.Workspace)/image_info/image_info.env
+        source $(Build.ArtifactStagingDirectory)/image_info.env
         echo "Scanning $IMAGE_NAME:$IMAGE_TAG"
-
-        # Trivy scan - fail if CRITICAL/HIGH
         trivy image --exit-code 1 --severity CRITICAL,HIGH $IMAGE_NAME:$IMAGE_TAG
-
-        # Save JSON report
         trivy image --format json --output $(Build.ArtifactStagingDirectory)/trivy-report.json $IMAGE_NAME:$IMAGE_TAG
       displayName: 'Trivy Image Scan - FAIL on CRITICAL/HIGH'
 
@@ -95,11 +74,27 @@ stages:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)/trivy-report.json'
         ArtifactName: 'trivy-report'
 
-    # Docker Push Step
+    # Push stage'e imaj bilgisini aktar
+    - publish: $(Build.ArtifactStagingDirectory)/image_info.env
+      artifact: image_info
+
+# 3) Push 
+- stage: PushImage
+  displayName: 'Docker Hub Push'
+  dependsOn: BuildAndScan
+  jobs:
+  - job: PushJob
+    steps:
+    - download: current
+      artifact: image_info
+
     - script: |
         source $(Pipeline.Workspace)/image_info/image_info.env
         echo $(DOCKERHUB_PASSWORD) | docker login -u $(DOCKERHUB_USERNAME) --password-stdin
         DOCKERHUB_REPO=$(DOCKERHUB_USERNAME)/$IMAGE_NAME
         docker tag $IMAGE_NAME:$IMAGE_TAG $DOCKERHUB_REPO:$IMAGE_TAG
+        # İstersen latest da bas:
+        # docker tag $IMAGE_NAME:$IMAGE_TAG $DOCKERHUB_REPO:latest
         docker push $DOCKERHUB_REPO:$IMAGE_TAG
-      displayName: 'Push Docker Image to Docker Hub'
+        # docker push $DOCKERHUB_REPO:latest
+      displayName: 'Push to Docker Hub'
