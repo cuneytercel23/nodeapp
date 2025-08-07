@@ -21,10 +21,17 @@ stages:
         arguments: >
           --rm
           -v $(Build.SourcesDirectory):/src:ro
-          -v $(Agent.TempDirectory)/reports:/reports
-          -v /opt/dependency-check-data:/usr/share/dependency-check/data
+          -v $(Build.ArtifactStagingDirectory)/dependency-check:/reports
+          -v $(Agent.TempDirectory)/odc-data:/usr/share/dependency-check/data
           owasp/dependency-check:latest
           --scan /src
           --format HTML
           --project "$(Build.Repository.Name)"
           --out /reports
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Dependency Check Report'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)/dependency-check'
+        ArtifactName: 'dependency-check-report'
+        publishLocation: 'Container'
