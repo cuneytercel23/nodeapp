@@ -11,19 +11,20 @@ stages:
   - job: DependencyCheck
     displayName: 'Security Scan'
     steps:
-    
     - checkout: self
 
     - task: Docker@2
-      displayName: 'OWASP Dependency Check'
+      displayName: 'Run OWASP Dependency-Check'
       inputs:
         command: 'run'
-        arguments: |
-          --rm 
-          --volume $(Build.SourcesDirectory):/src:ro
-          --volume $(Agent.TempDirectory)/reports:/reports
-          owasp/dependency-check:latest 
-          --scan /. 
-          --format ALL 
-          --project "$(Build.Repository.Name)" 
+        container: 'owasp/dependency-check:latest'
+        arguments: >
+          --rm
+          -v $(Build.SourcesDirectory):/src:ro
+          -v $(Agent.TempDirectory)/reports:/reports
+          -v /opt/dependency-check-data:/usr/share/dependency-check/data
+          owasp/dependency-check:latest
+          --scan /.
+          --format HTML
+          --project "$(Build.Repository.Name)"
           --out /reports
