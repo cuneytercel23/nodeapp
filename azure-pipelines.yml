@@ -9,15 +9,15 @@ variables:
 
 stages:
 - stage: SecurityScan
-  displayName: 'OWASP + SonarScanner CLI'
+  displayName: 'OWASP + SonarScanner CLI + Docker Build + Trivy Scan'
   jobs:
   - job: DependencyAndStaticCheck
-    displayName: 'Dependency & Static Analysis'
+    displayName: 'Security & Static Analysis'
     steps:
     
     - checkout: self
 
-    # OWASP Dependency-Check taraması
+    # 1. OWASP Dependency-Check taraması
     - script: |
         mkdir -p $(Build.ArtifactStagingDirectory)/owasp
         chmod -R 777 $(Build.ArtifactStagingDirectory)/owasp
@@ -33,15 +33,44 @@ stages:
           --out /reports
       displayName: 'Run OWASP Dependency-Check'
 
-    # OWASP raporlarını publish et
+    # 2. OWASP raporlarını publish et
     - task: PublishBuildArtifacts@1
       displayName: 'Publish OWASP Reports'
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)/owasp'
         ArtifactName: 'dependency-check-report'
 
-    # SonarScanner CLI çalıştır (sonar-project.properties dosyasını kullanır)
+    # 3. SonarScanner CLI çalıştır (wait=true ile quality gate sonucu bekler ve fail eder)
     - script: |
-        /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.login=$(SONAR_TOKEN) -X
-      displayName: 'Run SonarScanner (with sonar-project.properties)'
+        /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
+          -Dsonar.login=$(SONAR_TOKEN) \
+          -Dsonar.qualitygate.wait=true \
+          -X
+      displayName: 'Run SonarScanner (with quality gate wait)'
 
+    # 4. Docker Image Build
+    - script: |
+        IMAGE_NAME=my-nodejs-app
+        IMAGE_TAG=$(Build.BuildId)
+        docker build -t $IMAGE_NAME:$IMAGE_TAG .
+        echo "IMAGE_NAME=$IMAGE_NAME" >> $(Build.ArtifactStagingDirectory)/image_info.env
+        echo "IMAGE_TAG=$IMAGE_TAG" >> $(Build.ArtifactStagingDirectory)/image_info.env
+      displayName: 'Build Docker Image'
+
+    # 5. Trivy Scan (CRITICAL/HIGH açık varsa patlat)
+    - script: |
+        source $(Build.ArtifactStagingDirectory)/image_info.env
+        echo "Scanning $IMAGE_NAME:$IMAGE_TAG"
+        
+        trivy image --exit-code 1 --severity CRITICAL,HIGH $IMAGE_NAME:$IMAGE_TAG
+
+        # JSON rapor kaydet
+        trivy image --format json --output $(Build.ArtifactStagingDirectory)/trivy-report.json $IMAGE_NAME:$IMAGE_TAG
+      displayName: 'Trivy Image Scan - FAIL on CRITICAL/HIGH'
+
+    # 6. Trivy raporunu publish et
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Trivy Report'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)/trivy-report.json'
+        ArtifactName: 'trivy-report'
