@@ -20,13 +20,13 @@ stages:
     steps:
     - checkout: self
 
-- task: Kubernetes@1
-  displayName: "List Kubernetes Nodes"
-  inputs:
-    connectionType: 'Kubernetes Service Connection'
-    kubernetesServiceEndpoint: 'kubernetes-sc'
-    command: 'get'
-    arguments: 'nodes -o wide'
+    - task: Kubernetes@1
+      displayName: "List Kubernetes Nodes"
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceEndpoint: 'kubernetes-sc'
+        command: 'get'
+        arguments: 'nodes -o wide'
 
     # OWASP Dependency-Check
     - script: |
