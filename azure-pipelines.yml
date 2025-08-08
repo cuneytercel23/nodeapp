@@ -24,7 +24,7 @@ stages:
       displayName: "List Kubernetes Nodes"
       inputs:
         connectionType: 'Kubernetes Service Connection'
-        kubernetesServiceEndpoint: 'kubernetes-sc'
+        kubernetesServiceEndpoint: 'kub-sc'
         command: 'get'
         arguments: 'nodes -o wide'
 
